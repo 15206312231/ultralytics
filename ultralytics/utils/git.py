@@ -107,7 +107,11 @@ class GitRepo:
         obj = self.refdir / "objects" / commit[:2] / commit[2:]
         if not obj.exists():
             return None
-        data = zlib.decompress(obj.read_bytes())
+        try:
+            data = zlib.decompress(obj.read_bytes())
+        except zlib.error:
+            return None
+        # data = zlib.decompress(obj.read_bytes())
         if b"\0" not in data:
             return None
         kind, body = data.split(b"\0", 1)
