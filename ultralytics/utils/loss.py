@@ -15,7 +15,7 @@ from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
 from ultralytics.utils.tal import RotatedTaskAlignedAssigner, TaskAlignedAssigner, dist2bbox, dist2rbox, make_anchors
 from ultralytics.utils.torch_utils import autocast
 
-from .metrics import bbox_iou, probiou
+from .metrics import bbox_iou, probiou, nwd_iou
 from .tal import bbox2dist, rbox2dist
 
 
@@ -104,7 +104,7 @@ class DFLoss(nn.Module):
         return (
             F.cross_entropy(pred_dist, tl.view(-1), reduction="none").view(tl.shape) * wl
             + F.cross_entropy(pred_dist, tr.view(-1), reduction="none").view(tl.shape) * wr
-        ).mean(-1, keepdim=True)
+        ).mean(-1, keepdim=True)      
 
 
 class BboxLoss(nn.Module):
@@ -130,7 +130,9 @@ class BboxLoss(nn.Module):
         """Compute IoU and DFL losses for bounding boxes."""
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
         iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
+        nwd = nwd_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], C=12.8)
         loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
+        loss_iou = 0.2*loss_iou + 0.8*((1.0 - nwd) * weight).sum() / target_scores_sum
 
         # DFL loss
         if self.dfl_loss:

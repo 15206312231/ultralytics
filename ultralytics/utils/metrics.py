@@ -101,6 +101,23 @@ def box_iou(box1: torch.Tensor, box2: torch.Tensor, eps: float = 1e-7) -> torch.
     # IoU = inter / (area1 + area2 - inter)
     return inter / ((a2 - a1).prod(2) + (b2 - b1).prod(2) - inter + eps)
 
+def nwd_iou(box1: torch.Tensor, box2: torch.Tensor, C, eps=1e-7) -> torch.Tensor:
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1.chunk(4, -1)
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2.chunk(4, -1)
+        
+        w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1
+        w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1
+        
+        cx1, cy1 = b1_x1 + w1 / 2, b1_y1 + h1 / 2
+        cx2, cy2 = b2_x1 + w2 / 2, b2_y1 + h2 / 2
+        
+        # 计算高斯分布之间的 Wasserstein 距离的平方
+        w2_dist = (cx1 - cx2)**2 + (cy1 - cy2)**2 + ((w1 - w2) / 2)**2 + ((h1 - h2) / 2)**2
+        
+        # 计算 NWD 相似度 (范围 0 到 1，越接近 1 表示越匹配)
+        nwd_similarity = torch.exp(-torch.sqrt(w2_dist + eps) / C)
+        
+        return nwd_similarity
 
 def bbox_iou(
     box1: torch.Tensor,
